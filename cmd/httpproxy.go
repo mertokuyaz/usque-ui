@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/netip"
+	"os"
 	"time"
 
 	"github.com/Diniboy1123/usque/api"
@@ -248,7 +249,22 @@ var httpProxyCmd = &cobra.Command{
 
 		resolver := internal.GetProxyResolver(localDNS, systemDNS, tunNet, dnsAddrs, dnsTimeout)
 
-		go api.MaintainTunnel(context.Background(), api.MaintainTunnelConfig{
+		// Bind before publishing readiness or starting a tunnel. A port collision
+		// must not look like a running desktop proxy.
+		listener, err := net.Listen("tcp", net.JoinHostPort(bindAddress, port))
+		if err != nil {
+			cmd.Printf("Failed to start HTTP proxy: %v\n", err)
+			return
+		}
+		defer func() { _ = listener.Close() }()
+		var report func(api.TunnelStatus)
+		if statusJSON, _ := cmd.Flags().GetBool("status-json"); statusJSON {
+			report = api.NewStatusReporter(os.Stdout)
+			report(api.TunnelStatus{State: "ready", Endpoint: endpoint.String()})
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go api.MaintainTunnel(ctx, api.MaintainTunnelConfig{
 			TLSConfig:         tlsConfig,
 			KeepalivePeriod:   keepalivePeriod,
 			InitialPacketSize: initialPacketSize,
@@ -261,6 +277,7 @@ var httpProxyCmd = &cobra.Command{
 			OnConnect:         onConnect,
 			OnDisconnect:      onDisconnect,
 			HookEnv:           hookEnv,
+			OnStatus:          report,
 		})
 
 		server := &http.Server{
@@ -281,7 +298,7 @@ var httpProxyCmd = &cobra.Command{
 		}
 
 		log.Printf("HTTP proxy listening on %s:%s\n", bindAddress, port)
-		if err := server.ListenAndServe(); err != nil {
+		if err := server.Serve(listener); err != nil {
 			cmd.Printf("Failed to start HTTP proxy: %v\n", err)
 		}
 	},
@@ -444,6 +461,7 @@ func init() {
 	httpProxyCmd.Flags().Uint16P("initial-packet-size", "i", 0, "Custom initial packet size for MASQUE connection (default: auto with PMTU discovery)")
 	httpProxyCmd.Flags().DurationP("reconnect-delay", "r", 1*time.Second, "Delay between reconnect attempts")
 	httpProxyCmd.Flags().Bool("always-reconnect", false, "Always reconnect after tunnel loss, even when idle")
+	httpProxyCmd.Flags().Bool("status-json", false, "Write machine-readable proxy/tunnel lifecycle events to stdout")
 	httpProxyCmd.Flags().Bool("http2", false, "Use HTTP/2 over TCP+TLS instead of HTTP/3 over QUIC."+config.EndpointHelpSuffixH2)
 	httpProxyCmd.Flags().Bool("insecure", false, "Disable endpoint certificate pinning and trust any certificate")
 	httpProxyCmd.Flags().BoolP("local-dns", "l", false, "Do not send proxy DNS through the tunnel; use -d over the host instead. Add --system-dns to use the OS resolver instead of -d")

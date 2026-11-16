@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"log"
+	"os"
 	"time"
 
 	"github.com/Diniboy1123/usque/api"
@@ -188,6 +189,12 @@ var nativeTunCmd = &cobra.Command{
 			persist:  persist,
 		}
 
+		var report func(api.TunnelStatus)
+		statusJSON, _ := cmd.Flags().GetBool("status-json")
+		if statusJSON {
+			report = api.NewStatusReporter(os.Stdout)
+		}
+
 		dev, err := t.create()
 		if err != nil {
 			log.Println("Are you root/administrator? TUN device creation usually requires elevated privileges.")
@@ -195,6 +202,9 @@ var nativeTunCmd = &cobra.Command{
 		}
 
 		log.Printf("Created TUN device: %s", t.name)
+		if report != nil {
+			report(api.TunnelStatus{State: "ready", Interface: t.name, Endpoint: endpoint.String()})
+		}
 
 		hookEnv := map[string]string{
 			"USQUE_MODE":  "nativetun",
@@ -216,6 +226,7 @@ var nativeTunCmd = &cobra.Command{
 			OnConnect:         onConnect,
 			OnDisconnect:      onDisconnect,
 			HookEnv:           hookEnv,
+			OnStatus:          report,
 		})
 
 		log.Println("Tunnel established, you may now set up routing and DNS")
@@ -236,6 +247,7 @@ func init() {
 	nativeTunCmd.Flags().BoolP("no-iproute2", "I", false, "Linux only: Do not set up IP addresses and do not set the link up")
 	nativeTunCmd.Flags().DurationP("reconnect-delay", "r", 1*time.Second, "Delay between reconnect attempts")
 	nativeTunCmd.Flags().Bool("always-reconnect", false, "Always reconnect after tunnel loss, even when idle")
+	nativeTunCmd.Flags().Bool("status-json", false, "Write machine-readable lifecycle events to stdout (logs remain on stderr)")
 	nativeTunCmd.Flags().Bool("http2", false, "Use HTTP/2 over TCP+TLS instead of HTTP/3 over QUIC."+config.EndpointHelpSuffixH2)
 	nativeTunCmd.Flags().Bool("insecure", false, "Disable endpoint certificate pinning and trust any certificate")
 	nativeTunCmd.Flags().StringP("interface-name", "n", "", "Custom interface name for the TUN interface")

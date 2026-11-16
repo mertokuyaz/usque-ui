@@ -51,6 +51,21 @@ Usque is an open-source reimplementation of the Cloudflare WARP client's MASQUE 
 
 ## Installation
 
+### Windows desktop UI
+
+A .NET 8 WPF interface with one-click WARP registration, full-device IPv4/IPv6
+routing, DNS configuration, and a persistent Windows kill switch is available in
+[`desktop/`](desktop/README.md).
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\desktop\build.ps1 -DownloadWintun
+.\dist\desktop\Usque.Desktop.exe
+```
+
+The app requests administrator privileges. On the first connection it asks for
+Cloudflare terms consent, registers a profile, and connects. See the desktop
+README for recovery instructions and the kill-switch security model.
+
 You can download the latest release from the [releases page](https://github.com/Diniboy1123/usque/releases). For now, Android (`arm64`), Linux (`armv5`, `armv6`, `armv7`, `arm64`, `amd64`), Windows (`arm64`, `amd64`, `386`) and Darwin (`arm64`, `amd64`) binaries are provided. **However only the Linux `amd64` binary was tested.** If you have a different platform, you can build from source.
 
 Extract the archive and you will find a binary named `usque` in the root directory. You can move this binary to a directory in your `PATH` to make it accessible from anywhere.

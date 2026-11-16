@@ -248,20 +248,32 @@ var socksCmd = &cobra.Command{
 		}
 		defer func() { _ = tunDev.Close() }()
 
-		go api.MaintainTunnel(context.Background(), api.MaintainTunnelConfig{
-			TLSConfig:         tlsConfig,
-			KeepalivePeriod:   keepalivePeriod,
-			InitialPacketSize: initialPacketSize,
-			Endpoint:          endpoint,
-			Device:            api.NewNetstackAdapter(tunDev),
-			MTU:               mtu,
-			ReconnectDelay:    reconnectDelay,
-			AlwaysReconnect:   alwaysReconnect,
-			UseHTTP2:          useHTTP2,
-			OnConnect:         onConnect,
-			OnDisconnect:      onDisconnect,
-			HookEnv:           hookEnv,
-		})
+		var report func(api.TunnelStatus)
+		if statusJSON, _ := cmd.Flags().GetBool("status-json"); statusJSON {
+			report = api.NewStatusReporter(os.Stdout)
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		startTunnel := func() {
+			if report != nil {
+				report(api.TunnelStatus{State: "ready", Endpoint: endpoint.String()})
+			}
+			go api.MaintainTunnel(ctx, api.MaintainTunnelConfig{
+				TLSConfig:         tlsConfig,
+				KeepalivePeriod:   keepalivePeriod,
+				InitialPacketSize: initialPacketSize,
+				Endpoint:          endpoint,
+				Device:            api.NewNetstackAdapter(tunDev),
+				MTU:               mtu,
+				ReconnectDelay:    reconnectDelay,
+				AlwaysReconnect:   alwaysReconnect,
+				UseHTTP2:          useHTTP2,
+				OnConnect:         onConnect,
+				OnDisconnect:      onDisconnect,
+				HookEnv:           hookEnv,
+				OnStatus:          report,
+			})
+		}
 
 		resolver := &internal.TunnelDNSResolver{
 			DNSAddrs:      dnsAddrs,
@@ -280,6 +292,7 @@ var socksCmd = &cobra.Command{
 			TunNet:     tunNet,
 			UDPTimeout: udpTimeout,
 			Logger:     log.New(internal.NewTZStampWriter(os.Stderr), "socks5: ", 0),
+			OnReady:    startTunnel,
 		})
 		if err != nil {
 			cmd.Printf("Failed to create SOCKS proxy: %v\n", err)
@@ -312,6 +325,7 @@ func init() {
 	socksCmd.Flags().DurationP("reconnect-delay", "r", 1*time.Second, "Delay between reconnect attempts")
 	socksCmd.Flags().Duration("udp-timeout", 60*time.Second, "Idle read deadline for each remote UDP relay (SOCKS5 ASSOCIATE). Shorter frees memory sooner; raise (e.g. 300s) if a quiet peer needs longer silence. 0 disables the deadline and risks unbounded growth under DHT/uTP")
 	socksCmd.Flags().Bool("always-reconnect", false, "Always reconnect after tunnel loss, even when idle")
+	socksCmd.Flags().Bool("status-json", false, "Write machine-readable proxy/tunnel lifecycle events to stdout")
 	socksCmd.Flags().Bool("http2", false, "Use HTTP/2 over TCP+TLS instead of HTTP/3 over QUIC."+config.EndpointHelpSuffixH2)
 	socksCmd.Flags().Bool("insecure", false, "Disable endpoint certificate pinning and trust any certificate")
 	socksCmd.Flags().BoolP("local-dns", "l", false, "Do not send proxy DNS through the tunnel; use -d over the host instead. Add --system-dns to use the OS resolver instead of -d")

@@ -28,6 +28,7 @@ type SOCKS5Config struct {
 	TCPTimeout time.Duration // 0 = no deadline on TCP CONNECT relay
 	UDPTimeout time.Duration // 0 = no deadline on remote UDP reads
 	Logger     *log.Logger
+	OnReady    func() // Called only after all required local listeners are bound.
 }
 
 // SOCKS5Server wraps txthinking/socks5; DialTCP/DialUDP are package globals (last NewSOCKS5Server wins).
@@ -163,6 +164,9 @@ func (s *SOCKS5Server) listenAndServe() error {
 		},
 	})
 	if s.cfg.TCPOnly {
+		if s.cfg.OnReady != nil {
+			s.cfg.OnReady()
+		}
 		return srv.RunnerGroup.Wait()
 	}
 
@@ -175,6 +179,9 @@ func (s *SOCKS5Server) listenAndServe() error {
 	if err != nil {
 		_ = l.Close()
 		return err
+	}
+	if s.cfg.OnReady != nil {
+		s.cfg.OnReady()
 	}
 	srv.RunnerGroup.Add(&runnergroup.Runner{
 		Start: func() error {

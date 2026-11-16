@@ -30,3 +30,9 @@ usque
 usque.exe
 dist/.vscode/
 .vscode/
+
+# Windows desktop build output
+**/bin/
+**/obj/
+dist/
+.vs/
