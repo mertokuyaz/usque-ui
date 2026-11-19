@@ -26,10 +26,10 @@ public sealed class WarpHealthCheck : IConnectionHealth
         var dnsOk = dnsResult.Warp;
         var ipv6Ok = v6.Warp;
         cancellationToken.ThrowIfCancellationRequested();
-        return new(DateTimeOffset.UtcNow, warp, dnsOk, ipv6Ok, v4.Latency,
-            warp && dnsOk ? (ipv6Ok ? Localization.Instance["health.verified.dual"] : Localization.Instance["health.verified.dns"])
-                : Localization.Instance[!v4.Reachable ? "health.failed.internet" : !warp ? "health.failed.warp" : "health.failed.dns"])
-            { InternetReachable = v4.Reachable };
+        var detailKey = warp && dnsOk ? (ipv6Ok ? "health.verified.dual" : "health.verified.dns")
+            : !v4.Reachable ? "health.failed.internet" : !warp ? "health.failed.warp" : "health.failed.dns";
+        return new(DateTimeOffset.UtcNow, warp, dnsOk, ipv6Ok, v4.Latency, Localization.Instance[detailKey])
+            { InternetReachable = v4.Reachable, DetailKey = detailKey };
     }
 
     private sealed record ProbeResult(bool Reachable = false, bool Warp = false, double? Latency = null);

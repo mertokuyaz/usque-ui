@@ -1,7 +1,22 @@
 namespace Usque.Core;
 
 public enum ConnectionState { Offline, Registering, Connecting, Verifying, Connected, Degraded, Reconnecting, Blocked, Error, Disconnecting }
-public sealed record ConnectionStatus(ConnectionState State, string Detail);
+public sealed record ConnectionStatus(ConnectionState State, string Detail)
+{
+    // Keep the original text for logs, and resolve built-in messages at display
+    // time so switching languages does not require restarting the connection.
+    public string? DetailKey { get; init; }
+    public object[] DetailArguments { get; init; } = [];
+    public string DetailSuffix { get; init; } = "";
+    public string? DetailSuffixKey { get; init; }
+    public string LocalizedDetail => Localize(static text => text);
+    // Built-in templates are product text. Only backend-supplied fragments (raw
+    // messages, string arguments, suffixes) go through `external`, so a redactor
+    // cannot mangle wording that happens to match a profile name or secret.
+    public string Localize(Func<string, string> external) => DetailKey == null ? external(Detail)
+        : Localization.Instance.Format(DetailKey, DetailArguments.Select(a => a is string text ? external(text) : a).ToArray()) +
+            (DetailSuffixKey == null ? external(DetailSuffix) : " " + Localization.Instance[DetailSuffixKey]);
+}
 public sealed record TunnelEvent(string State, string? Interface = null);
 public sealed record WarpProfile(string Endpoint, string IPv4, string IPv6, string DeviceId);
 public enum ConnectionMode { Tunnel, Socks5, HttpProxy }
@@ -28,6 +43,11 @@ public sealed record HealthResult(DateTimeOffset CheckedUtc, bool WarpVerified, 
 {
     public bool Healthy => WarpVerified && DnsReachable;
     public bool? InternetReachable { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? DetailKey { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string LocalizedDetail => Localize(static text => text);
+    public string Localize(Func<string, string> external) => DetailKey == null ? external(Detail) : Localization.Instance[DetailKey];
 }
 public interface IConnectionHealth
 {

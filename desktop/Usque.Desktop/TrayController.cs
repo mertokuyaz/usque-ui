@@ -74,7 +74,7 @@ internal sealed class TrayController : IDisposable
         _restore.Text = local["tray.restore"];
         _restore.Enabled = _viewModel.RestoreCommand.CanExecute(null);
         _exit.Text = local["tray.exit"];
-        _exit.Enabled = !_viewModel.IsExiting;
+        _exit.Enabled = _viewModel.CanExit;
         Apply(_presentation.Update(_viewModel.TrayStatus));
     }
     private void UpdateTooltip(string tooltip)

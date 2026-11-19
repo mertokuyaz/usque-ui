@@ -11,6 +11,7 @@ public partial class App : Application
 {
     private Mutex? _instance;
     private NetworkEnvironmentMonitor? _networkMonitor;
+    private InstanceActivation? _activation;
     internal bool SuppressStartupForTests { get; init; }
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -37,7 +38,18 @@ public partial class App : Application
                 return;
             }
             _instance = new Mutex(true, @"Global\UsqueDesktop-57d78a76", out var first);
-            if (!first) throw new InvalidOperationException(AppLocalization.Instance["startup.alreadyRunning"]);
+            if (!first)
+            {
+                // Sign-in launches stay quiet; an ordinary launch brings the running
+                // window forward (it may be hidden in the notification area).
+                // Recovery requests and other sessions still get the explanation.
+                if (!e.Args.Contains("--restore-network") && (e.Args.Contains("--startup") || InstanceActivation.TrySignal()))
+                {
+                    Shutdown();
+                    return;
+                }
+                throw new InvalidOperationException(AppLocalization.Instance["startup.alreadyRunning"]);
+            }
             var paths = new AppPaths();
             paths.EnsureSecureDirectory();
             if (e.Args.Contains("--restore-network"))
@@ -59,6 +71,10 @@ public partial class App : Application
             viewModel = new MainViewModel(controller, profile, preferences, paths,
                 new StartupRegistration(Environment.ProcessPath ?? throw new InvalidOperationException(AppLocalization.Instance["startup.noExecutable"])));
             var window = new MainWindow(viewModel);
+            _activation = InstanceActivation.Listen(() =>
+            {
+                if (!Dispatcher.HasShutdownStarted) Dispatcher.BeginInvoke(window.RestoreFromTray);
+            });
             _networkMonitor = new NetworkEnvironmentMonitor(controller);
             controller.Initialize();
             window.Show();
@@ -142,6 +158,7 @@ public partial class App : Application
     }
     protected override void OnExit(ExitEventArgs e)
     {
+        _activation?.Dispose();
         _networkMonitor?.Dispose();
         _instance?.Dispose();
         base.OnExit(e);

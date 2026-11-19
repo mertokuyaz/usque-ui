@@ -28,7 +28,8 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
     public DateTimeOffset? RetryAtUtc { get; private set; }
     public DateTimeOffset? LastSuccessfulCheckUtc { get; private set; }
     public bool TransportEstablished { get; private set; }
-    public ConnectionStatus Status { get; private set; } = new(ConnectionState.Offline, "Ready when you are.");
+    public ConnectionStatus Status { get; private set; } = new(ConnectionState.Offline, Localization.Instance["detail.offline"])
+        { DetailKey = "detail.offline" };
     // WPF evaluates this property frequently. Native queries belong at lifecycle
     // boundaries, not in bindings; a failed query is conservatively held active.
     public bool ProtectionActive => _protectionActive;
@@ -40,13 +41,13 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
         try
         {
             if (ReadProtectionState())
-                Set(ConnectionState.Blocked, Localization.Instance["detail.blocked"]);
+                SetLocalized(ConnectionState.Blocked, "detail.blocked");
             else if (network.HasRecoveryState)
-                Set(ConnectionState.Error, Localization.Instance["detail.needsCleanup"]);
+                SetLocalized(ConnectionState.Error, "detail.needsCleanup");
         }
         catch (Exception ex)
         {
-            Set(ConnectionState.Error, Localization.Instance.Format("err.protectionUnable", ex.Message));
+            SetLocalized(ConnectionState.Error, "err.protectionUnable", ex.Message);
         }
     }
 
@@ -78,12 +79,12 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
         try
         {
             token.ThrowIfCancellationRequested();
-            Set(ConnectionState.Connecting, Localization.Instance["detail.preparing"]);
+            SetLocalized(ConnectionState.Connecting, "detail.preparing");
             engine.ValidateInstallation(options.Mode);
             ReadProtectionState();
             // Proxy mode must never silently release an existing machine lock.
             if (options.IsProxy && (ProtectionActive || network.HasRecoveryState))
-                throw new InvalidOperationException(Localization.Instance["proxy.restoreFirst"]);
+                throw new ConnectionPreconditionException("proxy.restoreFirst");
             // A stale NRPT rule can point DNS at a tunnel that no longer exists.
             // Remove it before registration, without lowering existing filters.
             if (network.HasRecoveryState) await network.CleanupAsync(token);
@@ -93,8 +94,8 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
             if (!profiles.Exists)
             {
                 if (ProtectionActive)
-                    throw new InvalidOperationException(Localization.Instance["err.restoreFirst"]);
-                Set(ConnectionState.Registering, Localization.Instance["detail.registering"]);
+                    throw new ConnectionPreconditionException("err.restoreFirst");
+                SetLocalized(ConnectionState.Registering, "detail.registering");
                 await engine.RegisterAsync(token);
                 token.ThrowIfCancellationRequested();
             }
@@ -106,7 +107,7 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
                 LastHealth = null;
                 var profile = await profiles.LoadAsync(transport.Http2, token);
                 token.ThrowIfCancellationRequested();
-                Set(ConnectionState.Connecting, Localization.Instance[transport.Http2 ? "detail.connecting.http2" : "detail.connecting.quic"]);
+                SetLocalized(ConnectionState.Connecting, transport.Http2 ? "detail.connecting.http2" : "detail.connecting.quic");
                 // Replace exceptions atomically while keeping the default blocks.
                 // No Disarm call is allowed anywhere in the fallback path.
                 if (!transport.IsProxy && (transport.KillSwitch || ProtectionActive))
@@ -125,7 +126,7 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
                 catch (EnvironmentChangedException) when (options.AutoReconnect && !token.IsCancellationRequested)
                 {
                     ReconnectCount++;
-                    Set(ConnectionState.Reconnecting, Localization.Instance["recovery.network"]);
+                    SetLocalized(ConnectionState.Reconnecting, "recovery.network");
                     if (!transport.IsProxy) await network.CleanupAsync(token);
                     await WaitForRetryAsync(_timings.RetryDelay, token);
                     continue;
@@ -135,7 +136,7 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
                     // RunTransportAsync has already killed and joined the old
                     // engine before routes, endpoint exception or profile change.
                     ReconnectCount++;
-                    Set(ConnectionState.Reconnecting, Localization.Instance[ProtectionActive ? "detail.fallback.protected" : "detail.fallback.open"]);
+                    SetLocalized(ConnectionState.Reconnecting, ProtectionActive ? "detail.fallback.protected" : "detail.fallback.open");
                     if (!transport.IsProxy) await network.CleanupAsync(token);
                     token.ThrowIfCancellationRequested();
                     transport = transport with { Http2 = true };
@@ -150,10 +151,11 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
                     if (!transport.IsProxy) await network.CleanupAsync(token);
                     var seconds = Math.Min(_timings.MaximumRetryDelay.TotalSeconds,
                         _timings.RetryDelay.TotalSeconds * Math.Pow(2, Math.Min(_consecutiveFailures++, 8)));
-                    await WaitForRetryAsync(TimeSpan.FromSeconds(seconds), token, ex.Message);
+                    await WaitForRetryAsync(TimeSpan.FromSeconds(seconds), token, ex.Message,
+                        (ex as TransportAttemptException)?.DetailKey);
                     continue;
                 }
-                throw new IOException(Localization.Instance["err.engineStopped"]);
+                throw new TransportAttemptException(Localization.Instance["err.engineStopped"], detailKey: "err.engineStopped");
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
@@ -175,7 +177,7 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
             _environment?.Writer.TryWrite(change);
     }
 
-    private async Task WaitForRetryAsync(TimeSpan delay, CancellationToken token, string? reason = null)
+    private async Task WaitForRetryAsync(TimeSpan delay, CancellationToken token, string? reason = null, string? reasonKey = null)
     {
         var changes = _environment!.Reader;
         try
@@ -186,13 +188,14 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
                 if (_suspended)
                 {
                     RetryAtUtc = null;
-                    Set(ConnectionState.Reconnecting, Localization.Instance["recovery.suspended"]);
+                    SetLocalized(ConnectionState.Reconnecting, "recovery.suspended");
                     await changes.ReadAsync(token);
                     continue;
                 }
                 RetryAtUtc = DateTimeOffset.UtcNow + delay;
-                Set(ConnectionState.Reconnecting, Localization.Instance[ProtectionActive ? "recovery.wait.protected" : "recovery.wait.open"] +
-                    (reason == null ? "" : " " + reason));
+                var key = ProtectionActive ? "recovery.wait.protected" : "recovery.wait.open";
+                var suffix = reason == null ? "" : " " + reason;
+                Set(ConnectionState.Reconnecting, Localization.Instance[key] + suffix, key, suffix: suffix, suffixKey: reasonKey);
                 using var wait = CancellationTokenSource.CreateLinkedTokenSource(token);
                 var timer = Task.Delay(delay, wait.Token);
                 var changed = changes.ReadAsync(wait.Token).AsTask();
@@ -259,7 +262,8 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
                 if (environmentChange?.IsCompletedSuccessfully == true) throw new EnvironmentChangedException();
                 if (next.IsCompleted) completed = next;
                 else if (deadline.IsCompleted) completed = deadline;
-                if (completed == deadline) throw new TransportAttemptException(Localization.Instance["err.transportTimeout"]);
+                if (completed == deadline) throw new TransportAttemptException(Localization.Instance["err.transportTimeout"],
+                    detailKey: "err.transportTimeout");
                 if (completed == healthTimer)
                 {
                     StartHealthCheck(initial: false);
@@ -286,7 +290,11 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
                 }
                 TunnelEvent update;
                 try { update = await next; }
-                catch (ChannelClosedException ex) { throw new TransportAttemptException(ex.InnerException?.Message ?? "The VPN engine stopped unexpectedly.", ex); }
+                catch (ChannelClosedException ex)
+                {
+                    throw new TransportAttemptException(ex.InnerException?.Message ?? Localization.Instance["err.engineStopped"], ex,
+                        ex.InnerException == null ? "err.engineStopped" : null);
+                }
                 next = null;
                 token.ThrowIfCancellationRequested();
                 switch (update.State)
@@ -308,14 +316,14 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
                         TransportEstablished = true;
                         if (health != null)
                         {
-                            Set(ConnectionState.Verifying, Localization.Instance["detail.verifying"]);
+                            SetLocalized(ConnectionState.Verifying, "detail.verifying");
                             if (healthCheck == null) StartHealthCheck(initial: true);
                             else verificationPending = true;
                         }
                         else
                         {
                             _consecutiveFailures = 0;
-                            Set(ConnectionState.Connected, Localization.Instance[options.IsProxy ? "proxy.connected" : "detail.connected.nohealth"]);
+                            SetLocalized(ConnectionState.Connected, options.IsProxy ? "proxy.connected" : "detail.connected.nohealth");
                             deadline = Delay(ref deadlineCancellation, Timeout.InfiniteTimeSpan);
                         }
                         break;
@@ -326,7 +334,7 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
                         verificationPending = false;
                         InvalidateHealth();
                         probeCancellation?.Cancel();
-                        Set(ConnectionState.Reconnecting, Localization.Instance[ProtectionActive ? "detail.reconnecting.protected" : "detail.reconnecting.open"]);
+                        SetLocalized(ConnectionState.Reconnecting, ProtectionActive ? "detail.reconnecting.protected" : "detail.reconnecting.open");
                         deadline = Delay(ref deadlineCancellation, _timings.TransportTimeout);
                         healthTimer = Delay(ref healthCancellation, Timeout.InfiniteTimeSpan);
                         break;
@@ -385,12 +393,19 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
         LastHealth = result;
         if (result.Healthy) { LastSuccessfulCheckUtc = result.CheckedUtc; _consecutiveFailures = 0; }
         HealthChanged?.Invoke(result);
-        if (initial && !result.Healthy) throw new TransportAttemptException(result.Detail);
+        if (initial && !result.Healthy) throw new TransportAttemptException(result.Detail, detailKey: result.DetailKey);
         var state = result.Healthy ? ConnectionState.Connected : ConnectionState.Degraded;
-        if (initial || Status.State != state) Set(state, result.Detail);
+        if (initial || Status.State != state) Set(state, result.Detail, result.DetailKey);
     }
 
-    private sealed class TransportAttemptException(string message, Exception? inner = null) : IOException(message, inner);
+    private sealed class TransportAttemptException(string message, Exception? inner = null, string? detailKey = null) : IOException(message, inner)
+    {
+        public string? DetailKey { get; } = detailKey;
+    }
+    private sealed class ConnectionPreconditionException(string key) : InvalidOperationException(Localization.Instance[key])
+    {
+        public string DetailKey { get; } = key;
+    }
     private sealed class EnvironmentChangedException : IOException;
 
     public async Task StopAsync()
@@ -399,7 +414,7 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
         try
         {
             InvalidateHealth();
-            Set(ConnectionState.Disconnecting, Localization.Instance["detail.disconnecting"]);
+            SetLocalized(ConnectionState.Disconnecting, "detail.disconnecting");
             _session?.Cancel();
             if (_runner != null) await _runner;
             _runner = null;
@@ -413,7 +428,7 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
                 await network.CleanupAsync(CancellationToken.None);
             if (!ActiveOptions.IsProxy || ProtectionActive) killSwitch.Disarm();
             _protectionActive = false;
-            Set(ConnectionState.Offline, Localization.Instance["detail.offline"]);
+            SetLocalized(ConnectionState.Offline, "detail.offline");
         }
         catch (Exception ex)
         {
@@ -442,10 +457,16 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
         try { active = ReadProtectionState(); }
         catch (Exception statusError)
         {
-            Set(ConnectionState.Error, Localization.Instance.Format("err.protectionUnknown", error.Message, statusError.Message));
+            SetLocalized(ConnectionState.Error, "err.protectionUnknown", error.Message, statusError.Message);
             return;
         }
-        Set(active ? ConnectionState.Blocked : ConnectionState.Error, error.Message);
+        var key = error switch
+        {
+            TransportAttemptException transport => transport.DetailKey,
+            ConnectionPreconditionException precondition => precondition.DetailKey,
+            _ => null
+        };
+        Set(active ? ConnectionState.Blocked : ConnectionState.Error, error.Message, key);
     }
 
     private void InvalidateHealth()
@@ -454,9 +475,14 @@ public sealed class ConnectionController(IProfileStore profiles, IVpnEngine engi
         LastHealth = null;
     }
 
-    private void Set(ConnectionState state, string detail)
+    private void SetLocalized(ConnectionState state, string key, params object[] arguments) =>
+        Set(state, Localization.Instance.Format(key, arguments), key, arguments);
+
+    private void Set(ConnectionState state, string detail, string? key = null, object[]? arguments = null,
+        string suffix = "", string? suffixKey = null)
     {
-        Status = new(state, detail);
+        Status = new(state, detail)
+            { DetailKey = key, DetailArguments = arguments ?? [], DetailSuffix = suffix, DetailSuffixKey = suffixKey };
         StatusChanged?.Invoke(Status);
     }
 }

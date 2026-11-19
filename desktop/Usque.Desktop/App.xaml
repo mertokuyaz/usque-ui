@@ -8,6 +8,10 @@
             <Setter Property="Foreground" Value="#EDF3F5" />
             <Setter Property="FontFamily" Value="Segoe UI" />
         </Style>
+        <!-- Optional advice lines should not leave blank gaps when there is nothing to say. -->
+        <Style x:Key="CollapseWhenEmpty" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Style.Triggers><Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed" /></Trigger></Style.Triggers>
+        </Style>
         <Style TargetType="Button">
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Foreground" Value="#B9C8CE" />

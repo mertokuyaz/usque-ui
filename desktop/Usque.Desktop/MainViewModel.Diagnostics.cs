@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Reflection;
 using System.Windows.Input;
 using Usque.Core;
@@ -10,11 +11,11 @@ public sealed record DiagnosticRow(string Name, string Result, string Detail, st
 public sealed partial class MainViewModel
 {
     public string Logs => string.Join(Environment.NewLine, _logs);
-    public bool CanDiagnose => IsAvailable && _runDiagnostics != null && !_acting && !_diagnosing && !_checkingHealth && !IsBusy;
+    public bool CanDiagnose => IsAvailable && _runDiagnostics != null && !_acting && !_startupBusy && !_diagnosing && !_checkingHealth && !IsBusy;
     public ObservableCollection<DiagnosticRow> DiagnosticChecks { get; } = [];
     public string DiagnosticCheckedAt => _diagnosticSnapshot is { } snapshot
         ? L.Format("health.checkedAt", snapshot.CheckedUtc.ToLocalTime().ToString("HH:mm:ss")) : L["diag.notRun"];
-    public string HealthSummary => _controller?.LastHealth is { } health ? _redactor.Redact(health.Detail) : L["health.noData"];
+    public string HealthSummary => _controller?.LastHealth is { } health ? health.Localize(_redactor.Redact) : L["health.noData"];
     public string HealthCheckedAt => _controller?.LastHealth is { } health
         ? L.Format("health.checkedAt", health.CheckedUtc.ToLocalTime().ToString("HH:mm:ss")) : L["health.notChecked"];
     public string Latency => _controller?.LastHealth?.LatencyMilliseconds is { } latency
@@ -22,7 +23,7 @@ public sealed partial class MainViewModel
 
     private void ExportDiagnostics()
     {
-        var target = _interaction.SelectReport(L["dlg.appTitle"], $"usque-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+        var target = _interaction.SelectReport(L["dlg.appTitle"], $"usque-diagnostics-{DateTime.Now.ToString("yyyyMMdd-HHmmss", CultureInfo.InvariantCulture)}.json");
         if (target == null) return;
         var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "unknown";
         var report = DiagnosticsWriter.Create(version, _status, _controller?.ActiveHttp2 ?? false, Preferences,

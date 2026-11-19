@@ -22,16 +22,26 @@ driver or change networking during the build.
 
 ## Installer
 
-`desktop/build.ps1` produces a `dist/` folder for the version; the included
-Inno Setup script wraps it into a single setup program:
+One command runs all tests, builds a clean package, and compiles the setup
+program (requires Inno Setup 6, e.g. `winget install JRSoftware.InnoSetup --scope user`):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\desktop\build.ps1 -OutputDirectory dist\desktop-1.3.2
-# then compile the setup program (Inno Setup 6 required):
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" .\desktop\installer.iss /DPackageDir=..\dist\desktop-1.3.2
+powershell -ExecutionPolicy Bypass -File .\desktop\build-installer.ps1
+# optional: -Suffix test-label, -Runtime win-arm64, -WintunDll <path>, -SkipTests, -Iscc <path>
 ```
 
-The output is `dist\UsqueDesktop-Setup-1.3.2.exe`. It installs under Program
+The version comes from `Usque.Desktop.csproj`. The script recreates
+`dist\desktop-<version>` so files from older builds cannot leak into the
+installer, downloads the hash-verified official Wintun, and refuses to compile
+if a runtime file is missing or private state (profiles, settings, journals) is
+present. `installer.iss` repeats those checks, so a manual
+`ISCC.exe desktop\installer.iss /DPackageDir=..\dist\desktop-1.3.2` works too.
+
+The output is `dist\UsqueDesktop-Setup-<version>[-suffix].exe` plus a
+`.sha256` file (`sha256sum -c` compatible). Setup and uninstall wait while Usque
+is running and never force-close it, because that would leave the kill switch
+blocking traffic. Upgrades remove the previous runtime DLLs before copying the
+new ones. ARM64 packages get an ARM64-only installer. The installer installs under Program
 Files, registers Add/Remove Programs, creates a Start Menu shortcut and an
 optionally-selected Desktop shortcut (the U icon), and offers English/Turkish
 wizard pages. It never installs a Windows service or a startup task, and does
@@ -46,9 +56,8 @@ leave the machine with no application installed to recover from a filter.
 ### GitHub Actions
 
 The workflow in [`.github/workflows/desktop.yml`](../.github/workflows/desktop.yml)
-runs the full test suite, builds the package, downloads verified Wintun, and
-assembles the Inno Setup installer on a `windows-latest` runner so you can attach
-`UsqueDesktop-Setup-1.3.2.exe` to a GitHub Release.
+runs `build-installer.ps1` on a `windows-latest` runner, so you can attach
+`UsqueDesktop-Setup-<version>.exe` and its `.sha256` file to a GitHub Release.
 
 Options: `-Runtime win-arm64`, `-FrameworkDependent` (requires the .NET 8 Windows
 Desktop Runtime), or `-WintunDll C:\path\wintun.dll` instead of downloading.
@@ -121,7 +130,8 @@ DNS packets use WARP, or an anonymity guarantee.
   Minimizing or closing the window minimizes it to the taskbar without ending
   the connection. Use **Exit Usque** to quit. If you explicitly enable
   **Minimize and close to notification area**, both actions hide the window
-  instead. Double-click the notification-area icon to reopen. Its menu
+  instead; this preference can be changed while connected. Double-click the
+  notification-area icon, or launch Usque again, to reopen. Its menu
   offers connect/disconnect, recovery and **Exit**. An explicit **Exit Usque**
   button is also in the sidebar. Existing saved preferences are preserved.
   Hover the icon (including inside Windows' hidden-icons overflow) to see current
@@ -265,7 +275,8 @@ keep existing protection; it never silently restores internet after a crash.
 Profiles, `settings.json` and the recovery journal live in `%ProgramData%\UsqueDesktop`. That
 directory is restricted to Administrators and SYSTEM. The profile contains
 private keys and API credentials in upstream's JSON format (ACL-protected, **not
-encrypted at rest**). Only one machine-wide instance is allowed. Logs are
+encrypted at rest**). Only one machine-wide instance is allowed; launching it
+again in the same Windows session brings the running window forward. Logs are
 bounded to the latest 200 events in memory; review them before sharing.
 
 There is no telemetry, automatic profile overwrite, or system-proxy modification.
@@ -311,8 +322,10 @@ Tests use injected fakes for registration, cancellation, reconnection, crash
 handling, cleanup failure, firewall policy, native structure layout, protected
 QUIC-to-TCP fallback, health gating, preference persistence, profile isolation,
 redaction, statistics and startup rollback. No real startup task is registered. They
-also render all three UI pages off-screen in a startup-suppressed preview host;
-the tests do not show windows or start the production application. These tests
+also render all three UI pages off-screen in a startup-suppressed preview host
+and never start the production application. Exit-flow regressions briefly show
+a minimized, unactivated window without a taskbar entry or tray icon, because
+WPF enforces its closing rules only for real windows. These tests
 do not prove real packet-level leak prevention. Before production use, perform
 the elevated [VM acceptance checklist](TESTING.md), including live packet
 capture, adapter changes, sleep/wake, DNS/IPv6, and forced process termination.
@@ -322,7 +335,8 @@ Structure:
   `MainViewModel.cs` owns connection presentation/lifetime;
   `MainViewModel.Settings.cs` owns settings/profile bindings and input validation;
   `MainViewModel.Diagnostics.cs` owns reports, checks and logs.
-  `DesktopInteraction` isolates dialogs, clipboard and browser effects.
+  `DesktopInteraction` isolates dialogs, clipboard and browser effects;
+  `InstanceActivation` brings the running window forward on relaunch.
 - `Usque.Core`: session state machine, engine lifecycle, WFP policy, networking.
 - `Usque.Desktop/Scripts/Network.ps1`: narrowly scoped, journaled route/DNS changes.
 - `Usque.Tests`: dependency-free, non-mutating test executable.

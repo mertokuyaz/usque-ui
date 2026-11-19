@@ -7,6 +7,18 @@ foreach ($definition in $ast.FindAll({ param($node) $node -is [System.Management
         . ([scriptblock]::Create($definition.Extent.Text))
     }
 }
+$installerBuild = Join-Path $PSScriptRoot '..\build-installer.ps1'
+$installerAst = [System.Management.Automation.Language.Parser]::ParseFile($installerBuild, [ref]$null, [ref]$null)
+foreach ($definition in $installerAst.FindAll({ param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $false)) {
+    if ($definition.Name -in @('Get-DesktopVersion', 'Find-InnoCompiler', 'Assert-PackageComplete', 'Reset-PackageDirectory')) {
+        . ([scriptblock]::Create($definition.Extent.Text))
+    }
+}
+function Assert-Throws([scriptblock]$Action, [string]$Message) {
+    $failed = $false
+    try { & $Action } catch { $failed = $true }
+    if (-not $failed) { throw $Message }
+}
 $directory = Join-Path ([System.IO.Path]::GetTempPath()) ('opencode\usque-build-tests-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $directory -Force | Out-Null
 function Write-Sample([string]$path, [uint16]$machine) {
@@ -47,5 +59,41 @@ try {
         if (-not $failed) { throw 'Locked output was not rejected before publishing.' }
     } finally { $lock.Dispose() }
     Write-Host 'PASS  Locked output is rejected without stopping an application'
-    Write-Host '6/6 packaging-script tests passed. No executables were launched or drivers loaded.'
+
+    $project = Join-Path $directory 'Sample.csproj'
+    Set-Content -LiteralPath $project -Value '<Project><PropertyGroup><OutputType>WinExe</OutputType></PropertyGroup><PropertyGroup><Version>4.5.6</Version></PropertyGroup></Project>'
+    if ((Get-DesktopVersion $project) -ne '4.5.6') { throw 'The project version was not read.' }
+    Set-Content -LiteralPath $project -Value '<Project><PropertyGroup><Version>1.2-beta</Version></PropertyGroup></Project>'
+    Assert-Throws { Get-DesktopVersion $project } 'A malformed project version was accepted.'
+    Write-Host 'PASS  Installer version comes from a well-formed project version'
+
+    $compiler = Join-Path $directory 'ISCC.exe'
+    Assert-Throws { Find-InnoCompiler $compiler } 'A missing explicit ISCC path was accepted.'
+    [System.IO.File]::WriteAllText($compiler, '')
+    if ((Find-InnoCompiler $compiler) -ne $compiler) { throw 'An explicit ISCC path was ignored.' }
+    Write-Host 'PASS  Explicit Inno Setup compiler path is validated'
+
+    $dist = Join-Path $directory 'dist'
+    $package = Join-Path $dist 'desktop-test'
+    foreach ($relative in @('Usque.Desktop.exe', 'Usque.Desktop.dll', 'Usque.Core.dll', 'Usque.Desktop.deps.json',
+        'Usque.Desktop.runtimeconfig.json', 'engine\usque.exe', 'engine\wintun.dll', 'Scripts\Network.ps1',
+        'USQUE-LICENSE.md', 'UsqueDesktop.ico')) {
+        $path = Join-Path $package $relative
+        New-Item -ItemType Directory -Path (Split-Path -Parent $path) -Force | Out-Null
+        [System.IO.File]::WriteAllText($path, 'sample')
+    }
+    Assert-PackageComplete $package
+    Remove-Item -LiteralPath (Join-Path $package 'engine\wintun.dll')
+    Assert-Throws { Assert-PackageComplete $package } 'A package without Wintun was accepted.'
+    [System.IO.File]::WriteAllText((Join-Path $package 'engine\wintun.dll'), 'sample')
+    [System.IO.File]::WriteAllText((Join-Path $package 'settings.json'), '{}')
+    Assert-Throws { Assert-PackageComplete $package } 'A package containing private settings was accepted.'
+    Write-Host 'PASS  Incomplete packages and private state are rejected before compiling'
+
+    Assert-Throws { Reset-PackageDirectory $directory $dist } 'A directory outside dist was cleaned.'
+    Assert-Throws { Reset-PackageDirectory $dist $dist } 'The dist root itself was cleaned.'
+    Reset-PackageDirectory $package $dist
+    if ((Test-Path -LiteralPath $package) -or -not (Test-Path -LiteralPath $project)) { throw 'Package cleanup removed the wrong files.' }
+    Write-Host 'PASS  Package cleanup is confined to its own directory under dist'
+    Write-Host '10/10 packaging-script tests passed. No executables were launched or drivers loaded.'
 } finally { Remove-Item -LiteralPath $directory -Recurse -Force }

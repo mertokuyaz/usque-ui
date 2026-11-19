@@ -113,6 +113,42 @@ packet captures and diagnostics private: they can contain network identifiers.
   Existing crash protection must not be labeled off merely because a saved
   preference is off. Empty-log copy/clear actions should be disabled.
 
+## Additional UI regression acceptance
+
+- Induce a connection failure and a separate connected-but-unhealthy state. The
+  help panel above the connection card must show appropriate Retry or Check now,
+  diagnostics and log actions, plus explicit restoration when recovery state or
+  protection exists. Retry must never act as a disconnect toggle or silently
+  release protection. A missing profile behind a protection lock, or a local
+  proxy behind old machine-wide state, must require explicit restoration first.
+- Run diagnostics from the help panel and verify failed checks refine its advice.
+  Newer health failures must supersede older diagnostic suggestions. Unknown
+  failures should not claim a specific cause; unknown protection must not be
+  described as a verified traffic block. Technical details must remain complete,
+  selectable and redacted. Check English, Turkish and RTL layouts at 800×480.
+- Enable Windows startup from a published distribution. During protected-package
+  copying/verification the UI must remain responsive, conflicting settings and
+  explicit exit must be disabled, and changing language must not be overwritten
+  when installation completes. Force a preference-save failure and verify the
+  actual prior scheduled-task state is restored.
+- Disable/remove the owned task externally in Task Scheduler. Refocus/reopen the
+  window: the startup switch must reflect the task, not a stale saved flag.
+- Switch language while connecting, connected, blocked after verification, and
+  offline. Existing built-in status/health text must update without reconnecting
+  or issuing an additional health probe. Raw backend messages/historical logs
+  remain verbatim apart from redaction.
+- Enter empty, duplicate and control-character profile names: show inline
+  validation without modal errors. Force create/rename persistence failure,
+  correct the failure, and retry without retyping the name.
+- Verify unavailable adapter counters show **—**, measured idle counters show
+  zero rates, and a disabled power button is visibly dimmed.
+- Move the window between monitors with different scaling and negative monitor
+  origins. Change taskbar position/size and display resolution, then unplug a
+  secondary monitor. After movement/changes the window must fit its current work
+  area, retain a reachable title bar and restore normal minimum dimensions when
+  returning to a larger display. Check both taskbar-minimized and tray-hidden
+  restore paths. These require real display/VM acceptance beyond off-screen tests.
+
 ## Tray notification acceptance (1.3.2)
 
 - Enable Windows notifications and disable Do Not Disturb for the acceptance

@@ -36,8 +36,9 @@ public sealed partial class MainViewModel
         CultureInfo.InvariantCulture, out port) && port is >= 1 and <= 65535;
     public bool HasProxyPortError => !TryGetProxyPort(out _);
     public string ProxyPortError => HasProxyPortError ? L["proxy.portError"] : "";
-    string IDataErrorInfo.Error => ProxyPortError;
-    string IDataErrorInfo.this[string columnName] => columnName == nameof(ProxyPortText) ? ProxyPortError : "";
+    string IDataErrorInfo.Error => string.Join(Environment.NewLine, new[] { ProxyPortError, ProfileNameError }.Where(s => s.Length > 0));
+    string IDataErrorInfo.this[string columnName] => columnName switch
+    { nameof(ProxyPortText) => ProxyPortError, nameof(ProfileName) => ProfileNameError, _ => "" };
     public bool AutoReconnect { get => Preferences.AutoReconnect; set => ChangePreference(p => p with { AutoReconnect = value }); }
     public bool IsProxy => (IsSession ? _controller!.ActiveOptions.Mode : Mode) != ConnectionMode.Tunnel;
     public bool CanConfigureKillSwitch => CanEdit && !IsProxy;
@@ -64,7 +65,10 @@ public sealed partial class MainViewModel
             Refresh();
         }
     }
-    public bool MinimizeToTray { get => Preferences.MinimizeToTray; set => ChangePreference(p => p with { MinimizeToTray = value }); }
+    public bool MinimizeToTray { get => Preferences.MinimizeToTray; set => ChangeWindowPreference(p => p with { MinimizeToTray = value }); }
+    // Window behavior never affects networking, so unlike connection settings it
+    // stays editable during a session (the main time people want to change it).
+    public bool CanChangeWindowBehavior => IsAvailable;
     public bool AutoConnect
     {
         get => Preferences.AutoConnect;
@@ -77,21 +81,21 @@ public sealed partial class MainViewModel
     }
     public bool StartWithWindows
     {
-        get => Preferences.StartWithWindows;
+        get => _startupEnabled == true;
         set
         {
-            if (!CanEdit || IsPreview || _startup == null || value == StartWithWindows) return;
-            if (value && _interaction.Show(L["dlg.startup.body"], L["dlg.startup.title"], MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK) return;
-            try
+            if (!CanConfigureStartup || IsPreview || value == StartWithWindows) return;
+            if (value && _interaction.Show(L["dlg.startup.body"], L["dlg.startup.title"], MessageBoxButton.OKCancel, MessageBoxImage.Information) != MessageBoxResult.OK)
             {
-                if (_preferences == null) return;
-                StartupPreferences.SetEnabled(_preferences, _startup, value);
+                Refresh();
+                return;
             }
-            catch (Exception ex) { ReportError(ex); }
-            finally { ReadPreferences(); Refresh(); }
+            _startupBusy = true;
+            Refresh();
+            StartupOperation = SetStartupEnabledAsync(value);
         }
     }
-    public bool CanConfigureStartup => _startup != null && _preferences != null && CanEdit;
+    public bool CanConfigureStartup => _startup != null && _preferences != null && _startupEnabled.HasValue && !_refreshingStartup && CanEdit;
     public string ProfileDescription => _controller?.ProfileExists == true ? L["profile.active"] : L["profile.pending"];
     public string ProtectionDescription => _controller?.ProtectionActive == true ? L["protect.active"]
         : IsProxy ? L["proxy.noKillSwitch"] : KillSwitch ? L["protect.on"] : L["protect.off"];
@@ -109,7 +113,20 @@ public sealed partial class MainViewModel
             catch (Exception ex) { ReportError(ex); Changed(); }
         }
     }
-    public string ProfileName { get => _profileName; set { _profileName = value; Changed(); } }
+    public string ProfileName
+    {
+        get => _profileName;
+        set { if (!CanEdit) return; _profileName = value; Refresh(); }
+    }
+    public string ProfileNameError => ValidateProfileName(excludeSelected: true);
+    public string CreateProfileNameError => ValidateProfileName(excludeSelected: false);
+    private string ValidateProfileName(bool excludeSelected)
+    {
+        var name = ProfileName.Trim();
+        if (name.Length is < 1 or > 40 || name.Any(char.IsControl)) return L["profile.nameError"];
+        return Profiles.Any(p => (!excludeSelected || p.Id != SelectedProfileId) &&
+            string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase)) ? L["profile.nameDuplicate"] : "";
+    }
 
     private static IReadOnlyList<LocalizedChoice<TransportMode>> BuildTransportChoices() =>
         Array.AsReadOnly<LocalizedChoice<TransportMode>>([new(TransportMode.Automatic, "choice.automatic"),
@@ -144,7 +161,18 @@ public sealed partial class MainViewModel
         }
         catch (Exception ex) { ReportError(ex); Refresh(); return false; }
     }
-    private void RefreshProfiles()
+    private void ChangeWindowPreference(Func<Preferences, Preferences> change)
+    {
+        if (!CanChangeWindowBehavior) return;
+        try
+        {
+            var next = change(Preferences);
+            if (next != Preferences) Save(next);
+        }
+        catch (Exception ex) { ReportError(ex); }
+        Refresh();
+    }
+    private void RefreshProfiles(bool preserveDraft = false)
     {
         ReadPreferences();
         _refreshingProfiles = true;
@@ -152,7 +180,7 @@ public sealed partial class MainViewModel
         {
             Profiles.Clear();
             foreach (var entry in Preferences.Profiles) Profiles.Add(entry);
-            _profileName = Profiles.First(p => p.Id == SelectedProfileId).Name;
+            if (!preserveDraft) _profileName = Profiles.First(p => p.Id == SelectedProfileId).Name;
             _redactor.AddSecrets(Profiles.Select(p => p.Name));
             if (_paths != null) _redactor.RefreshFromProfile(_paths.Profile);
         }
@@ -162,7 +190,15 @@ public sealed partial class MainViewModel
     {
         if (!CanEdit) return;
         try { action(); }
-        finally { ClearDiagnostics(); RefreshProfiles(); Refresh(); }
+        catch
+        {
+            // Reload any recovered catalogue state without losing the user's
+            // draft if a disk/permission error interrupted the operation.
+            RefreshProfiles(preserveDraft: true);
+            Refresh();
+            throw;
+        }
+        ClearDiagnostics(); RefreshProfiles(); Refresh();
     }
     private void DeleteProfile()
     {

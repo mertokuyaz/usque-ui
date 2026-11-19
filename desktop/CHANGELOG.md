@@ -1,5 +1,51 @@
 # Unreleased — Complete desktop localization
 
+- Fix **Exit → No (keep protection)** never closing the window, and the same
+  failure when restoring networking had nothing left to wait for. WPF rejects
+  `Close()` while its Closing event is still running.
+- Fix a crash when the notification-area **Open** item or icon was used while
+  the exit confirmation was showing.
+- Fix repeated tray warning balloons on every automatic-retry cycle. A recovery
+  episode is announced once; terminal failures and new episodes still notify.
+- Fix redaction mangling the app's own translated status, health and help text
+  (e.g. a profile named "WARP" displayed "[REDACTED] verified"). Backend
+  messages, format arguments and logs are still redacted.
+- Launching Usque again brings the running window forward (also from the
+  notification area) instead of reporting that it is already running. This only
+  applies within the same Windows session; recovery launches are unchanged.
+- **Minimize and close to notification area** can be changed while connected.
+- The log view follows new entries, but keeps a reader's place when scrolled up
+  (previously every new line jumped back to the top).
+- The busy spinner animates only while busy, so the app no longer keeps WPF's
+  render loop running while idle. State brushes are cached and frozen.
+- Hide empty diagnostic advice lines; use invariant digits in report file names.
+- Add 12 regression tests (7 bug fixes, 5 improvements).
+- Installer build: new `desktop/build-installer.ps1` runs tests, recreates a clean
+  versioned package, verifies it, finds Inno Setup, compiles, and writes a SHA-256
+  file. The version comes from the project file. `installer.iss` now refuses
+  incomplete packages, takes its version from the packaged executable, supports
+  ARM64, never force-closes a running app (`CloseApplications=no`), removes stale
+  runtime DLLs on upgrade, and adds setup version metadata and logging. CI uses
+  the same script. Adds 4 packaging-script tests.
+
+- Add a prominent, localized connection-help panel for failed connections and
+  health warnings, with cause-specific advice from structured health/diagnostic
+  results, safe retry/recheck actions, log access and expandable redacted details.
+  Keep restoration explicit, explain its protection implications, and distinguish
+  unknown kill-switch status and proxy-only coverage. Add 10 recovery UI tests.
+
+- Keep protected startup package installation and Task Scheduler access off the
+  UI thread; display the actual task state on load and window activation. Preserve
+  rollback on settings failures and prevent exit during an in-flight install.
+- Relocalize existing built-in connection and health messages without another
+  network check. Retain backend error context, historical logs and redaction.
+- Show unavailable dashboard traffic rates as **—**, dim the disabled power
+  button, and validate profile names inline without discarding drafts on failure.
+- Handle per-monitor DPI, monitor/work-area changes and window moves; constrain
+  the window to its current display and restore normal minimums on larger screens.
+- Add 14 UI regression tests covering these fixes, including dispatcher
+  responsiveness, startup rollback and localization/redaction.
+
 - Disable notification-area hiding by default. Minimize and ordinary close keep
   the application minimized in the taskbar without disconnecting; explicit Exit
   still runs the existing exit/cleanup flow. Preserve saved tray preferences and

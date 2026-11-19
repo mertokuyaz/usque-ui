@@ -14,6 +14,9 @@ internal sealed class TrayPresentation
     private static AppLocalization L => AppLocalization.Instance;
     private ConnectionState _lastState;
     private bool _connectionEstablished, _connectedNoticeSent, _pendingConnected;
+    // Automatic recovery alternates Connecting/Reconnecting on every attempt.
+    // Announce the start of a recovery episode once, not every retry cycle.
+    private bool _recoveryAnnounced;
 
     public TrayPresentation(ConnectionState initialState)
     {
@@ -31,6 +34,7 @@ internal sealed class TrayPresentation
             if (snapshot.State is ConnectionState.Connected or ConnectionState.Degraded)
             {
                 _connectionEstablished = true;
+                _recoveryAnnounced = false;
                 _pendingConnected = snapshot.State == ConnectionState.Connected && !_connectedNoticeSent;
                 if (snapshot.State == ConnectionState.Degraded) notice = StateWarning(snapshot);
             }
@@ -48,8 +52,16 @@ internal sealed class TrayPresentation
                         notice = new(L["tray.notice.disconnectedTitle"], Limit(body + "\n" + snapshot.Detail, 255),
                             snapshot.State != ConnectionState.Offline);
                     }
-                    else if (snapshot.State is ConnectionState.Reconnecting or ConnectionState.Blocked or ConnectionState.Error)
+                    else if (snapshot.State == ConnectionState.Reconnecting)
+                    {
+                        if (!_recoveryAnnounced) notice = StateWarning(snapshot);
+                    }
+                    else if (snapshot.State is ConnectionState.Blocked or ConnectionState.Error)
                         notice = StateWarning(snapshot);
+                    // Terminal states end the episode; Connecting between retries does not.
+                    if (snapshot.State == ConnectionState.Reconnecting) _recoveryAnnounced = true;
+                    else if (snapshot.State is ConnectionState.Offline or ConnectionState.Blocked or ConnectionState.Error)
+                        _recoveryAnnounced = false;
                     _connectionEstablished = false;
                     _connectedNoticeSent = false;
                 }
