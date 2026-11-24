@@ -10,9 +10,14 @@ This repository also ships **Usque Desktop**, a native Windows app built on the 
   <img src="_docs/screenshots/usque-desktop.png" alt="Usque Desktop: Overview page with a verified WARP connection, live traffic statistics and HTTPS latency" width="820">
 </p>
 
+## About this fork
+
+The unofficial Go engine for this project is sourced from https://github.com/Diniboy1123/usque. In this fork, I have simply added a Windows UI that includes a "kill switch" feature. Like the original Go engine (https://github.com/Diniboy1123/usque), this project is licensed under the MIT License, and I accept no responsibility for any damages that may arise from its use. Use it at your own risk.
+
 ## Table of Contents
 
 - [usque](#usque)
+  - [About this fork](#about-this-fork)
   - [Table of Contents](#table-of-contents)
   - [Windows desktop app](#windows-desktop-app)
     - [Requirements](#requirements)
