@@ -1,9 +1,6 @@
 The MIT License (MIT)
 =====================
 
-The MIT License (MIT)
-=====================
-
 Copyright © 2025, github.com/Diniboy1123
 Copyright © 2026, github.com/mertokuyaz
 
