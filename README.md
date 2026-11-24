@@ -4,10 +4,31 @@
 
 Usque is an open-source reimplementation of the Cloudflare WARP client's MASQUE mode. It leverages the [Connect-IP (RFC 9484)](https://datatracker.ietf.org/doc/rfc9484/) protocol and comes with many operation modes including a native tunnel, SOCKS5 and HTTP proxies, and faster TCP-only L4 proxy variants.
 
+This repository also ships **Usque Desktop**, a native Windows app built on the usque engine: one-click WARP connection, a persistent kill switch, automatic recovery, local SOCKS5/HTTP proxies, live traffic statistics and built-in diagnostics, in 11 languages.
+
+<p align="center">
+  <img src="_docs/screenshots/usque-desktop.png" alt="Usque Desktop: Overview page with a verified WARP connection, live traffic statistics and HTTPS latency" width="820">
+</p>
+
 ## Table of Contents
 
 - [usque](#usque)
   - [Table of Contents](#table-of-contents)
+  - [Windows desktop app](#windows-desktop-app)
+    - [Requirements](#requirements)
+    - [Install](#install)
+    - [First connection](#first-connection)
+    - [Interface tour](#interface-tour)
+      - [Overview](#overview)
+      - [Connection log](#connection-log)
+      - [Settings \& profiles](#settings--profiles)
+      - [Notification area](#notification-area)
+    - [Traffic modes](#traffic-modes)
+    - [Kill switch and recovery](#kill-switch-and-recovery)
+    - [Languages](#languages)
+    - [Command-line switches](#command-line-switches)
+    - [Privacy and stored data](#privacy-and-stored-data)
+    - [Building the desktop app](#building-the-desktop-app)
   - [Installation](#installation)
   - [Building from source](#building-from-source)
     - [Docker](#docker)
@@ -49,22 +70,201 @@ Usque is an open-source reimplementation of the Cloudflare WARP client's MASQUE 
   - [Acknowledgements](#acknowledgements)
   - [Disclaimer](#disclaimer)
 
-## Installation
+## Windows desktop app
 
-### Windows desktop UI
+Usque Desktop is a .NET 8 / WPF front end for the usque engine. It runs the engine's native tunnel or proxy modes for you, configures Windows routing and DNS, and adds a machine-wide kill switch, so there is no terminal setup and no `config.json` to edit. It is an independent, unofficial client and is not affiliated with Cloudflare.
 
-A .NET 8 WPF interface with one-click WARP registration, full-device IPv4/IPv6
-routing, DNS configuration, and a persistent Windows kill switch is available in
-[`desktop/`](desktop/README.md).
+This section is a user guide. The full technical reference (security model, startup task internals, tests) is in [`desktop/README.md`](desktop/README.md).
+
+### Requirements
+
+- Windows 10 version 1809 or later, or Windows 11, on x64 or ARM64.
+- Administrator rights. The app manages routes, DNS and Windows Filtering Platform (WFP) filters, so it always starts elevated.
+- Nothing else. The package is self-contained: it includes the .NET runtime, the usque engine and the official Wintun driver DLL.
+
+### Install
+
+1. Download `UsqueDesktop-Setup-<version>.exe` and its `.sha256` file from the [Releases page](https://github.com/mertokuyaz/usque-ui/releases).
+2. Optionally, verify the download. The hash must match the one in the `.sha256` file:
+   ```powershell
+   (Get-FileHash .\UsqueDesktop-Setup-1.3.2-bugfixes.exe -Algorithm SHA256).Hash
+   ```
+3. Run the setup program. The wizard is available in English and Turkish. It installs to `C:\Program Files\UsqueDesktop`, adds a **Usque WARP** Start Menu shortcut, and can also add a desktop shortcut.
+
+Setup never installs a Windows service or a startup task, and it does not create WARP profiles. The app creates those on first use. Setup and uninstall wait while Usque is running and never force-close it.
+
+> [!IMPORTANT]
+> Before uninstalling, open the app and use **Restore internet access** (or [`--restore-network`](#command-line-switches)). The uninstaller intentionally leaves the kill-switch filters and `%ProgramData%\UsqueDesktop` in place, so it cannot cut you off from a recovery path.
+
+### First connection
+
+1. Press the large power button on the **Overview** page.
+2. The first time, the app asks you to accept Cloudflare's WARP terms. It then registers and enrolls a new WARP profile automatically. Registration uses your regular connection, before the kill switch is armed.
+3. The app arms the kill switch, starts the tunnel, pins the WARP endpoint to your physical adapter, and sets IPv4/IPv6 default routes. DNS goes to `1.1.1.1` / `1.0.0.1` through WARP.
+4. It then checks WARP (`warp=on` / `warp=plus`), DNS and IPv6 through the tunnel. When the checks pass, the title reads **You're connected** and the badge shows **WARP VERIFIED**.
+
+Press the button again to disconnect. Networking is restored first, then the kill switch is released. Later connections reuse the saved profile. To use an existing usque `config.json` instead of registering, choose **Import profile** before connecting.
+
+### Interface tour
+
+The **sidebar** has three pages: **Overview**, **Connection log** and **Settings & profiles**. It also has the **Exit Usque** button and the app version. The title bar shows the current page; its **—** and **×** buttons minimize or close the window without ending the connection (see [Notification area](#notification-area)).
+
+#### Overview
+
+The main card shows the connection state:
+
+| Element | What it shows |
+| --- | --- |
+| Status badge (top right) | The current state (see the table below). |
+| Power button | Connects or disconnects. A spinning ring is shown while the app is working. |
+| Title and detail line | What is happening, for example *Connecting over QUIC…*. During automatic recovery a countdown (*Next attempt in 8 s*) is shown. |
+| **Protocol** | The active transport: `MASQUE / QUIC` or `MASQUE / TCP`. |
+| **Coverage** | `IPv4 + IPv6 verified`, `Full-device VPN`, or `Configured apps only` in proxy mode. |
+| **Session time** | Elapsed time of the current connection. |
+
+| Badge | Meaning |
+| --- | --- |
+| `NOT CONNECTED` | Idle. |
+| `WORKING ON IT` | Registering, connecting, verifying, reconnecting or disconnecting. |
+| `WARP VERIFIED` | The tunnel is up and the latest health check confirmed WARP and DNS. |
+| `TUNNEL CONNECTED` | The tunnel is up, but WARP has not been verified (yet). |
+| `PROXY ONLY` | A local SOCKS5 or HTTP proxy is running. Only apps configured to use it go through WARP. |
+| `HEALTH WARNING` | Connected, but the latest health check failed. |
+| `KILL SWITCH ACTIVE` | The tunnel is down and the kill switch is blocking traffic. |
+
+The statistics panel below the card shows:
+
+- **Download / Upload**: current traffic rates on the tunnel adapter, updated every second. These are real traffic rates, not a speed test.
+- **Downloaded / Uploaded**: totals for the current session. They survive a QUIC → TCP fallback and reset on a new session.
+- **HTTPS latency**: duration of an HTTPS probe through the tunnel (not an ICMP ping).
+- **Reconnections**: how many times the tunnel has reconnected in this session.
+- **Last successful check**, the latest health summary, and a **Check now** button. Health checks also run automatically every 30 seconds.
+
+Further down the page are quick settings (**Traffic mode**, **Kill switch**, **Connection mode**, **Language**), the **Health & diagnostics** panel with **Diagnose connection**, the **Import profile** button, and a **WARP terms ↗** link.
+
+If a connection or a health check fails, a **What you can do** panel appears above the card. It explains the problem, says whether kill-switch protection is still active, and offers the relevant actions: **Retry connection**, **Check now**, **Diagnose connection**, **Connection log**, **Restore internet access** and **Technical details**.
+
+**Diagnose connection** works while connected or disconnected. It runs read-only checks and never changes network settings. Each check reports *Passed*, *Warning*, *Failed* or *Not tested*, with a suggested next step:
+
+- Engine / driver
+- Local network
+- WARP endpoint / handshake
+- Internet through tunnel / proxy
+- Hostname / DNS access
+- WARP verification
+- IPv6 through tunnel / proxy
+
+#### Connection log
+
+The **Under the hood** page lists the latest 200 events. Secrets are redacted in memory: keys, tokens, identifiers, IP addresses and Windows user paths. The view follows new entries, but keeps your place if you scroll up. Buttons: **Export diagnostics** (a redacted JSON report), **Clear** and **Copy log**. Always review a log or report before sharing it.
+
+#### Settings & profiles
+
+Preferences are saved locally and kept across restarts. Connection settings can only be changed while disconnected. Language and the notification-area option can be changed at any time.
+
+| Group | Setting | Default | Notes |
+| --- | --- | --- | --- |
+| Connection & protection | **Traffic mode** | Full-device tunnel | Or SOCKS5 proxy / HTTP proxy. See [Traffic modes](#traffic-modes). |
+| | **Kill switch** | On | Blocks traffic if the VPN drops, even after a crash. Full-device tunnel only. |
+| | **Automatically recover the connection** | On | Reconnects after network changes, sleep/wake and engine failures. Retries back off from 2 to 30 seconds; disconnecting cancels them. |
+| | **Preferred transport** | Automatic (QUIC → TCP) | Or *QUIC / HTTP/3 only* or *TCP / HTTP/2 only*. Automatic tries QUIC first and switches to TCP after a failed attempt, without lowering protection. |
+| | **Language** | English | Applies immediately. See [Languages](#languages). |
+| Background & startup | **Minimize and close to notification area** | Off | When on, minimize and close hide the window to the notification area instead of the taskbar. |
+| | **Auto-connect when Usque opens** | Off | Connects with the selected profile on launch. Requires Cloudflare terms consent. |
+| | **Launch at Windows sign-in** | Off | Copies the runtime to a protected folder under Program Files and creates a sign-in task for your account. No password is stored. |
+| WARP profiles | Profile list | Default | Select a profile, then **Create profile**, **Rename selected** or **Delete selected**. **Import credentials…** loads an existing usque `config.json` into the selected profile; the source file is never modified. A new, empty profile registers on its first connection. |
+| Health & diagnostics | **Diagnose connection**, **Export safe report…** | | The same checks as on Overview, plus a redacted report export. |
+
+In proxy mode, a **Local port (1–65535)** field and a **Copy proxy address** button appear under Traffic mode.
+
+#### Notification area
+
+Usque keeps an icon in the Windows notification area (system tray):
+
+- **Hover** to see the current status and the live **↓ download / ↑ upload** rates.
+- **Double-click** to open the window. Launching Usque again also brings the running window forward.
+- **Right-click** for **Open Usque**, **Connect** / **Disconnect**, **Restore internet access** and **Exit…**.
+- Notifications are shown when the connection is established, ends, or is interrupted. Clicking one opens Usque.
+
+Closing or minimizing the window never ends the connection. To quit, use **Exit Usque** (sidebar) or **Exit…** (tray menu). Usque then asks what to do:
+
+- **Yes**: disconnect, restore normal internet access and exit.
+- **No**: exit and keep any active kill-switch protection.
+- **Cancel**: stay in the app.
+
+### Traffic modes
+
+| Mode | What goes through WARP | Kill switch | Traffic statistics |
+| --- | --- | --- | --- |
+| **Full-device tunnel** (default) | All IPv4 and IPv6 traffic on the device, through a Wintun adapter | Available (on by default) | Live rates and totals |
+| **SOCKS5 proxy** | Only apps you configure to use `socks5://127.0.0.1:<port>` | Not available | Shown as **—** |
+| **HTTP proxy** | Only apps you configure to use `http://127.0.0.1:<port>` | Not available | Shown as **—** |
+
+The default proxy port is `1080`. The proxies listen on `127.0.0.1` only, so they are not reachable from your LAN, and the app never changes the Windows system proxy. For example, after connecting:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\desktop\build.ps1 -DownloadWintun
-.\dist\desktop\Usque.Desktop.exe
+curl.exe --proxy socks5h://127.0.0.1:1080 https://www.cloudflare.com/cdn-cgi/trace
+curl.exe --proxy http://127.0.0.1:1080 https://www.cloudflare.com/cdn-cgi/trace
 ```
 
-The app requests administrator privileges. On the first connection it asks for
-Cloudflare terms consent, registers a profile, and connects. See the desktop
-README for recovery instructions and the kill-switch security model.
+> [!WARNING]
+> Proxy mode protects only the apps you configure, not the whole device. SOCKS5 clients should resolve hostnames through the proxy (for curl, `socks5h://` rather than `socks5://`).
+
+### Kill switch and recovery
+
+The kill switch uses persistent Windows Filtering Platform filters. While it is armed, outbound traffic is allowed only through the tunnel adapter, to the WARP endpoint, on loopback, and for DHCP / IPv6 neighbor discovery. There is no exception for physical DNS or the local network. The filters stay in place if the app or the engine crashes, and after a reboot.
+
+> [!CAUTION]
+> The kill switch affects **all users and applications on the machine**. Try it in a disposable VM first, and do not try it for the first time over Remote Desktop, SSH or any other connection you cannot afford to lose.
+
+If your internet access is blocked:
+
+1. Open Usque and either reconnect, or press **Restore internet access**. This disconnects WARP, removes the filters and restores your regular, **unprotected** connection.
+2. If the window will not open, run this from an elevated terminal:
+   ```powershell
+   & "C:\Program Files\UsqueDesktop\Usque.Desktop.exe" --restore-network
+   ```
+
+Recovery does not need Cloudflare or a working Wintun driver. Usque never silently restores internet access after a crash; that is always an explicit choice. Do not delete the app or `%ProgramData%\UsqueDesktop` while traffic is blocked.
+
+The health and diagnostic checks are reachability tests. They are not packet-capture leak tests and are not an anonymity guarantee.
+
+### Languages
+
+The whole interface is translated into English, Chinese (Simplified, 中文), Hindi (हिन्दी), Spanish (Español), French (Français), Arabic (العربية), Bengali (বাংলা), Russian (Русский), Portuguese (Português), Urdu (اردو) and Turkish (Türkçe). Arabic and Urdu use a right-to-left layout. Addresses, counters and logs stay left-to-right.
+
+### Command-line switches
+
+| Switch | Purpose |
+| --- | --- |
+| `--restore-network` | Removes this app's kill-switch filters and session network changes, then exits. Works even if settings or profiles are corrupt. Run elevated. |
+| `--preview` | UI-only preview for development. No elevation, registration, routes or firewall changes. |
+| `--startup` | Used by the optional sign-in task. Starts minimized, or hidden when the notification-area option is on. |
+
+### Privacy and stored data
+
+- Profiles, `settings.json` and the recovery journal are stored in `%ProgramData%\UsqueDesktop`, which only Administrators and SYSTEM can access. Profiles contain private keys and API credentials. They are ACL-protected but **not encrypted at rest**.
+- No telemetry. The app never changes the Windows system proxy and never overwrites a profile without asking.
+- Only one instance can run on the machine.
+
+### Building the desktop app
+
+Install the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) and the Go version required by `go.mod`, then run from the repository root:
+
+```powershell
+# Portable build in dist\desktop (keep the whole folder together)
+powershell -ExecutionPolicy Bypass -File .\desktop\build.ps1 -DownloadWintun
+.\dist\desktop\Usque.Desktop.exe
+
+# Tests + clean package + installer (requires Inno Setup 6)
+powershell -ExecutionPolicy Bypass -File .\desktop\build-installer.ps1
+```
+
+`build-installer.ps1` writes `dist\UsqueDesktop-Setup-<version>.exe` and a `.sha256` file. The [Windows desktop workflow](.github/workflows/desktop.yml) runs the same script on GitHub Actions. See [`desktop/README.md`](desktop/README.md) for build options (ARM64, framework-dependent builds, custom Wintun), and [`desktop/TESTING.md`](desktop/TESTING.md) for the VM acceptance checklist.
+
+## Installation
+
+This section and the ones that follow cover the cross-platform `usque` command-line engine that the desktop app is built on.
 
 You can download the latest release from the [releases page](https://github.com/Diniboy1123/usque/releases). For now, Android (`arm64`), Linux (`armv5`, `armv6`, `armv7`, `arm64`, `amd64`), Windows (`arm64`, `amd64`, `386`) and Darwin (`arm64`, `amd64`) binaries are provided. **However only the Linux `amd64` binary was tested.** If you have a different platform, you can build from source.
 
@@ -573,7 +773,7 @@ As a starting point, you can reach out to the [`api/`](api/) package. For exampl
 - **no support for WireGuard**: This is a MASQUE client. If you want WireGuard, use the official client or [wgcf](https://github.com/ViRb3/wgcf).
 - **no support for DoH etc.**: Yeah, the official clients expose a lot of extra DNS related features. I wanted to keep this lightweight. Those will probably not be supported by me. If you want, you are free to use 3rd party DoH clients and configure them to use the tunnel interface. DNS over Warp should already be working on all modes except for the native tunnel mode as all DNS queries made inside the tunnel will go through the tunnel (unless you use the `-l` flag).
 - **slow initial speeds**: You may experience slow speeds when opening a new connection that can gradually increase by time. This is due to the `reno` congestion control algorithm used by `quic-go`. It is not the most performant one out there, especially not for high latency environments. We have to wait for support for different congestion control algorithms and see how they compare. For instance there is an open issue for [BBR](https://github.com/quic-go/quic-go/issues/4565).
-- **native tunnels only support Linux**: This is due to the fact that we depend on the `TUN` device. While that exists on Android, without root it's hard to use in its current form. Windows support would be feasible, but I don't have experience with the Windows APIs regarding how to assign IP addresses to network interfaces. BSD and macOS support is uncertain. All these platforms are unsupported for now, because I don't have the means to test them and I am not willing to share untested code. PRs are welcome.
+- **native tunnels only support Linux and Windows**: This is due to the fact that we depend on the `TUN` device (Wintun on Windows). While that exists on Android, without root it's hard to use in its current form. BSD and macOS support is uncertain. These platforms are unsupported for now, because I don't have the means to test them and I am not willing to share untested code. PRs are welcome. On Windows, the [desktop app](#windows-desktop-app) sets up routes and DNS for you.
 
 ## Miscellaneous
 
