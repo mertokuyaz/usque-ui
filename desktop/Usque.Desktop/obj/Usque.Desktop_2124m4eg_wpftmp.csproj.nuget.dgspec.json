@@ -1,0 +1,133 @@
+{
+  "format": 1,
+  "restore": {
+    "C:\\Users\\merto\\Desktop\\usque-new\\desktop\\Usque.Desktop\\Usque.Desktop.csproj": {}
+  },
+  "projects": {
+    "C:\\Users\\merto\\Desktop\\usque-new\\desktop\\Usque.Core\\Usque.Core.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\merto\\Desktop\\usque-new\\desktop\\Usque.Core\\Usque.Core.csproj",
+        "projectName": "Usque.Core",
+        "projectPath": "C:\\Users\\merto\\Desktop\\usque-new\\desktop\\Usque.Core\\Usque.Core.csproj",
+        "packagesPath": "C:\\Users\\merto\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\merto\\Desktop\\usque-new\\desktop\\Usque.Core\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\merto\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0-windows"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0-windows7.0": {
+            "targetAlias": "net8.0-windows",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "allWarningsAsErrors": true,
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0-windows7.0": {
+          "targetAlias": "net8.0-windows",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.427/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\Users\\merto\\Desktop\\usque-new\\desktop\\Usque.Desktop\\Usque.Desktop.csproj": {
+      "version": "1.2.0",
+      "restore": {
+        "projectUniqueName": "C:\\Users\\merto\\Desktop\\usque-new\\desktop\\Usque.Desktop\\Usque.Desktop.csproj",
+        "projectName": "Usque.Desktop",
+        "projectPath": "C:\\Users\\merto\\Desktop\\usque-new\\desktop\\Usque.Desktop\\Usque.Desktop.csproj",
+        "packagesPath": "C:\\Users\\merto\\.nuget\\packages\\",
+        "outputPath": "C:\\Users\\merto\\Desktop\\usque-new\\desktop\\Usque.Desktop\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\merto\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0-windows"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0-windows7.0": {
+            "targetAlias": "net8.0-windows",
+            "projectReferences": {
+              "C:\\Users\\merto\\Desktop\\usque-new\\desktop\\Usque.Core\\Usque.Core.csproj": {
+                "projectPath": "C:\\Users\\merto\\Desktop\\usque-new\\desktop\\Usque.Core\\Usque.Core.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "allWarningsAsErrors": true,
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        }
+      },
+      "frameworks": {
+        "net8.0-windows7.0": {
+          "targetAlias": "net8.0-windows",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            },
+            "Microsoft.WindowsDesktop.App": {
+              "privateAssets": "none"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\8.0.427/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

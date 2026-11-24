@@ -1,0 +1,50 @@
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Tests.exe
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Tests.deps.json
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Tests.runtimeconfig.json
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Tests.dll
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Tests.pdb
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Core.dll
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Core.pdb
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.csproj.AssemblyReference.cache
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.AssemblyInfoInputs.cache
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.AssemblyInfo.cs
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.csproj.CoreCompileInputs.cache
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Te.AF9E138E.Up2Date
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.dll
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\refint\Usque.Tests.dll
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.pdb
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.genruntimeconfig.cache
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\ref\Usque.Tests.dll
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Desktop.deps.json
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Desktop.runtimeconfig.json
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Scripts\Network.ps1
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Desktop.exe
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Desktop.dll
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Desktop.pdb
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.sourcelink.json
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Scripts\Network.ps1
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Desktop.deps.json
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Desktop.runtimeconfig.json
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Desktop.exe
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Tests.exe
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Tests.deps.json
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Tests.runtimeconfig.json
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Tests.dll
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Tests.pdb
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Core.dll
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Desktop.dll
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Core.pdb
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\bin\Release\net8.0-windows\Usque.Desktop.pdb
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.csproj.AssemblyReference.cache
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.AssemblyInfoInputs.cache
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.AssemblyInfo.cs
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.csproj.CoreCompileInputs.cache
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.sourcelink.json
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Te.AF9E138E.Up2Date
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.dll
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\refint\Usque.Tests.dll
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.pdb
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\Usque.Tests.genruntimeconfig.cache
+C:\Users\merto\Desktop\HER ŞEY\usque-new\desktop\Usque.Tests\obj\Release\net8.0-windows\ref\Usque.Tests.dll

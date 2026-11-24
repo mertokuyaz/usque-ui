@@ -1,0 +1,12 @@
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Core\bin\Verification\net8.0-windows\Usque.Core.deps.json
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Core\bin\Verification\net8.0-windows\Usque.Core.dll
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Core\bin\Verification\net8.0-windows\Usque.Core.pdb
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Core\obj\Verification\net8.0-windows\Usque.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Core\obj\Verification\net8.0-windows\Usque.Core.AssemblyInfoInputs.cache
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Core\obj\Verification\net8.0-windows\Usque.Core.AssemblyInfo.cs
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Core\obj\Verification\net8.0-windows\Usque.Core.csproj.CoreCompileInputs.cache
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Core\obj\Verification\net8.0-windows\Usque.Core.dll
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Core\obj\Verification\net8.0-windows\refint\Usque.Core.dll
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Core\obj\Verification\net8.0-windows\Usque.Core.pdb
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Core\obj\Verification\net8.0-windows\ref\Usque.Core.dll
+C:\Users\merto\Desktop\usque-new\desktop\Usque.Core\obj\Verification\net8.0-windows\Usque.Core.sourcelink.json
